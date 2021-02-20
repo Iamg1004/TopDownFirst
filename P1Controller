@@ -1,0 +1,138 @@
+using System.Collections;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.InputSystem;
+
+public class P1Controller : MonoBehaviour
+{
+    private P1InputActions controls;                       // NewInputManager
+    private Rigidbody2D rb;                                // Movement
+    [SerializeField]private float MovementSpeed = 10f;     // Movement
+    [SerializeField]Transform P1SpawnPoint;                // Bullet Interaction    
+    [SerializeField]private float RotationSpeed = 15f;     // Rotation
+    public Transform RotationTarget;                       // Rotation
+    private float minX, maxX, minY, maxY;                  // Screen Bounded
+
+// Function Organization
+
+    void Awake()
+    {
+        GetPlayerInputs();
+        GetRb();
+    }
+
+    void FixedUpdate()
+    {
+        GetMovement();
+    }
+    
+    void Update()
+    {
+        GetRotation();
+        GetSetBoundings();
+    }
+
+// Until here
+
+// Needed for NewInputManager
+
+    void GetPlayerInputs()
+    {
+        controls = new P1InputActions();
+    }    
+
+    private void OnEnable()
+    {
+        controls.Enable();
+    }
+
+    private void OnDisable()
+    {
+        controls.Disable();
+    }
+
+// Until here
+
+// Needed for Movement
+
+    void GetMovement()
+    {
+        Vector2 moveInput = controls.Controller.Movement.ReadValue<Vector2>();
+        rb.velocity = moveInput * MovementSpeed;
+    }
+
+    void GetRb()
+    {       
+         rb = GetComponent<Rigidbody2D>();
+    }
+
+// Until Here
+
+// Needed for Rotation
+
+    private void GetRotation()
+    {
+        Vector2 direction = RotationTarget.position - transform.position;
+
+        float angle = Mathf.Atan2(direction.y, direction.x) * Mathf.Rad2Deg;
+
+        Quaternion rotation = Quaternion.AngleAxis(angle, Vector3.forward);
+
+        transform.rotation = Quaternion.Slerp(transform.rotation, rotation, RotationSpeed * Time.deltaTime);
+    }
+
+// Until here
+
+// Needed to react to/with bullets
+
+    void OnCollisionEnter2D(Collision2D collision)
+    {
+        if (collision.gameObject.tag == "Bullet")
+        {
+            Destroy(collision.gameObject);
+            transform.position=P1SpawnPoint.position;
+            GetComponent<CircleCollider2D> ().enabled = false;            
+            StartCoroutine(EnableCollider(1.0F));
+        }
+        
+        IEnumerator EnableCollider(float waitTime) 
+        {
+            yield return new WaitForSeconds(waitTime);
+            GetComponent<CircleCollider2D> ().enabled = true;
+        }
+    }
+
+// Until here
+
+// Needed to bound to screen size, dependant on resolution.
+
+    void GetSetBoundings(){
+        // If you want the min max values to update if the resolution changes 
+        // set them in update else set them in Start
+        float camDistance = Vector3.Distance(transform.position, Camera.main.transform.position);
+        Vector2 bottomCorner = Camera.main.ViewportToWorldPoint(new Vector3(0,0, camDistance));
+        Vector2 topCorner = Camera.main.ViewportToWorldPoint(new Vector3(1,1, camDistance));
+        
+        minX = bottomCorner.x;
+        maxX = topCorner.x;
+        minY = bottomCorner.y;
+        maxY = topCorner.y;
+        // Move to void Start up to here, to change screen-resolution-dependance.
+        
+        // Get current position
+        Vector3 pos = transform.position;
+ 
+        // Horizontal contraint
+        if(pos.x < minX) pos.x = minX;
+        if(pos.x > maxX) pos.x = maxX;
+ 
+        // vertical contraint
+        if(pos.y < minY) pos.y = minY;
+        if(pos.y > maxY) pos.y = maxY;
+ 
+        // Update position
+        transform.position = pos;
+    }
+ 
+// Until here
+}
